@@ -26,3 +26,15 @@ pids
 *.pid
 *.seed
 *.pid.lock
+
+# Home Assistant generated files
+config/.storage/
+config/.cache/
+config/.cloud/
+config/.HA_VERSION
+config/.ha_run.lock
+config/blueprints/
+config/tts/
+config/home-assistant_v2.db*
+config/home-assistant.log*
+.gitattributes
