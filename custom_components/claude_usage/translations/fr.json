@@ -1,0 +1,48 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Claude Usage — Configuration",
+        "description": "Entrez vos identifiants de session Claude.ai. Vous les trouvez dans les DevTools du navigateur (F12 → Application → Cookies → claude.ai).",
+        "data": {
+          "session_key": "Clé de session (cookie sessionKey)",
+          "cf_clearance": "Jeton Cloudflare (cookie cf_clearance)",
+          "org_id": "Identifiant d'organisation (UUID dans l'URL de l'API)"
+        },
+        "data_description": {
+          "session_key": "Valeur du cookie 'sessionKey' sur claude.ai",
+          "cf_clearance": "Valeur du cookie 'cf_clearance' sur claude.ai",
+          "org_id": "UUID visible dans l'onglet Réseau : /api/organizations/<uuid>/usage"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Claude Usage — Reconnexion",
+        "description": "Votre session a expiré (org : {org_id}). Collez de nouveaux cookies depuis votre navigateur.",
+        "data": {
+          "session_key": "Clé de session (cookie sessionKey)",
+          "cf_clearance": "Jeton Cloudflare (cookie cf_clearance)"
+        }
+      },
+      "reconfigure": {
+        "title": "Claude Usage — Reconfigurer",
+        "description": "Mettez à jour vos identifiants de session Claude.ai.",
+        "data": {
+          "session_key": "Clé de session (cookie sessionKey)",
+          "cf_clearance": "Jeton Cloudflare (cookie cf_clearance)",
+          "org_id": "Identifiant d'organisation"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossible de joindre Claude.ai. Vérifiez votre réseau.",
+      "session_expired": "Session expirée. Collez un nouveau sessionKey depuis votre navigateur.",
+      "cf_clearance_expired": "Jeton Cloudflare expiré. Collez un nouveau cf_clearance depuis votre navigateur.",
+      "unknown": "Erreur inattendue. Consultez les journaux de Home Assistant."
+    },
+    "abort": {
+      "already_configured": "Cette organisation est déjà configurée.",
+      "reauth_successful": "Reconnexion réussie.",
+      "reconfigure_successful": "Configuration mise à jour avec succès."
+    }
+  }
+}

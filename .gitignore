@@ -1,0 +1,22 @@
+# Build output
+dist/
+release/
+
+# Environment files with secrets
+.env.local
+
+# IDE
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock

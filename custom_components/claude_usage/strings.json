@@ -1,0 +1,48 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Claude Usage — Setup",
+        "description": "Enter your Claude.ai session credentials. You can find them in your browser DevTools (F12 → Application → Cookies → claude.ai).",
+        "data": {
+          "session_key": "Session Key (sessionKey cookie)",
+          "cf_clearance": "Cloudflare Token (cf_clearance cookie)",
+          "org_id": "Organization ID (UUID from the API URL)"
+        },
+        "data_description": {
+          "session_key": "Value of the 'sessionKey' cookie on claude.ai",
+          "cf_clearance": "Value of the 'cf_clearance' cookie on claude.ai",
+          "org_id": "UUID visible in the Network tab: /api/organizations/<uuid>/usage"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Claude Usage — Re-authentication",
+        "description": "Your session has expired (org: {org_id}). Please paste fresh cookies from your browser.",
+        "data": {
+          "session_key": "Session Key (sessionKey cookie)",
+          "cf_clearance": "Cloudflare Token (cf_clearance cookie)"
+        }
+      },
+      "reconfigure": {
+        "title": "Claude Usage — Reconfigure",
+        "description": "Update your Claude.ai session credentials.",
+        "data": {
+          "session_key": "Session Key (sessionKey cookie)",
+          "cf_clearance": "Cloudflare Token (cf_clearance cookie)",
+          "org_id": "Organization ID"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to reach Claude.ai. Check your network.",
+      "session_expired": "Session expired. Paste a fresh sessionKey from your browser.",
+      "cf_clearance_expired": "Cloudflare token expired. Paste a fresh cf_clearance from your browser.",
+      "unknown": "Unexpected error. Check the Home Assistant logs."
+    },
+    "abort": {
+      "already_configured": "This organisation is already configured.",
+      "reauth_successful": "Re-authentication successful.",
+      "reconfigure_successful": "Configuration updated successfully."
+    }
+  }
+}
