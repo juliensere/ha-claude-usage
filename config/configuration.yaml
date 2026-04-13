@@ -1,2 +1,7 @@
 # Minimal Home Assistant configuration used by the dev/test environment.
 default_config:
+
+logger:
+  default: warning
+  logs:
+    custom_components.claude_usage: debug

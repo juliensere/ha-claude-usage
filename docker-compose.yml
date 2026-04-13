@@ -1,0 +1,11 @@
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: ha-claude-usage-dev
+    volumes:
+      - ./config:/config
+    environment:
+      - TZ=Europe/Paris
+    ports:
+      - "8123:8123"
+    restart: unless-stopped
