@@ -44,8 +44,25 @@ def mock_entry() -> MockConfigEntry:
 
 
 @pytest.fixture
+def fake_raw_api_data() -> dict:
+    """Raw payload as returned by the claude.ai API (before _transform)."""
+    return {
+        "five_hour": {"utilization": 42.0, "resets_at": "2026-04-14T05:00:00+00:00"},
+        "seven_day": {"utilization": 70.0, "resets_at": "2026-04-21T00:00:00+00:00"},
+        "seven_day_sonnet": {"utilization": 55.0, "resets_at": "2026-04-21T00:00:00+00:00"},
+        "seven_day_opus": None,
+        "extra_usage": {
+            "is_enabled": True,
+            "monthly_limit": 2000,
+            "used_credits": 10.0,
+            "utilization": None,
+        },
+    }
+
+
+@pytest.fixture
 def fake_usage_data() -> dict:
-    """Realistic usage payload returned by claude.ai."""
+    """Transformed usage payload (output of _transform) used to populate coordinator.data."""
     return {
         "session_5h": {"utilization": 42, "resets_in_minutes": 180},
         "weekly": {"utilization": 70, "resets_in_minutes": 2000},

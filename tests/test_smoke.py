@@ -40,10 +40,10 @@ _USAGE_URL = BASE_URL + USAGE_ENDPOINT.format(org_id=ORG_ID)
 # ── validate_credentials ────────────────────────────────────────────────────
 
 
-async def test_validate_credentials_success(fake_usage_data):
+async def test_validate_credentials_success(fake_raw_api_data):
     """HTTP 200 → returns parsed JSON without raising."""
     with aioresponses() as m:
-        m.get(_USAGE_URL, payload=fake_usage_data, status=200)
+        m.get(_USAGE_URL, payload=fake_raw_api_data, status=200)
         result, _cookies = await validate_credentials(SESSION_KEY, CF_CLEARANCE, ORG_ID)
 
     assert result["session_5h"]["utilization"] == 42
@@ -85,14 +85,14 @@ async def test_validate_credentials_unexpected_status():
 
 
 async def test_coordinator_success_updates_metrics(
-    hass: HomeAssistant, mock_entry, fake_usage_data
+    hass: HomeAssistant, mock_entry, fake_raw_api_data
 ):
     """Successful fetch updates data and increments total_requests / last_response_ms."""
     mock_entry.add_to_hass(hass)
     coordinator = ClaudeUsageCoordinator(hass, mock_entry)
 
     with aioresponses() as m:
-        m.get(_USAGE_URL, payload=fake_usage_data, status=200)
+        m.get(_USAGE_URL, payload=fake_raw_api_data, status=200)
         data = await coordinator._async_update_data()
 
     assert data["session_5h"]["utilization"] == 42
@@ -119,7 +119,7 @@ async def test_coordinator_auth_failure_increments_failed(
 
 
 async def test_coordinator_cookie_renewal(
-    hass: HomeAssistant, mock_entry, fake_usage_data
+    hass: HomeAssistant, mock_entry, fake_raw_api_data
 ):
     """When server sends a new cf_clearance cookie, cookie_renewals is incremented."""
     mock_entry.add_to_hass(hass)
@@ -128,7 +128,7 @@ async def test_coordinator_cookie_renewal(
     with aioresponses() as m:
         m.get(
             _USAGE_URL,
-            payload=fake_usage_data,
+            payload=fake_raw_api_data,
             status=200,
             headers={"Set-Cookie": "cf_clearance=new-clearance-value; Path=/"},
         )
