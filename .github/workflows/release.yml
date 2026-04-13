@@ -3,14 +3,14 @@ name: Release
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "*.*.*"
 
 jobs:
   release:
     name: Build ZIP and publish release
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # required to create the GitHub Release
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
