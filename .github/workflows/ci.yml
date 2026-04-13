@@ -28,3 +28,23 @@ jobs:
 
       - name: Run tests
         run: python -m pytest tests/ -v
+
+  package:
+    name: Build release package
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build claude_usage.zip
+        run: |
+          cd config/custom_components
+          zip -r ../../claude_usage.zip claude_usage/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude_usage
+          path: claude_usage.zip
+          retention-days: 30
