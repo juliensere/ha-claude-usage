@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+import time
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
 import aiohttp
@@ -23,6 +25,16 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+@dataclass
+class UsageMetrics:
+    """Accumulates plugin-level metrics across polling cycles."""
+    total_requests: int = 0
+    failed_requests: int = 0
+    cookie_renewals: int = 0
+    last_success_at: str | None = None   # ISO timestamp
+    last_response_ms: int | None = None  # Duration of last successful call
 
 # Headers that pass Cloudflare — mirrors scripts/check_session_usage.py
 _BROWSER_HEADERS = {
@@ -94,6 +106,7 @@ class ClaudeUsageCoordinator(DataUpdateCoordinator[dict]):
             update_interval=timedelta(seconds=UPDATE_INTERVAL),
         )
         self.entry = entry
+        self.metrics = UsageMetrics()
 
     async def _async_update_data(self) -> dict:
         session_key = self.entry.data[CONF_SESSION_KEY]
@@ -109,6 +122,9 @@ class ClaudeUsageCoordinator(DataUpdateCoordinator[dict]):
             ),
         }
 
+        self.metrics.total_requests += 1
+        t_start = time.monotonic()
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
@@ -119,6 +135,7 @@ class ClaudeUsageCoordinator(DataUpdateCoordinator[dict]):
                 ) as resp:
 
                     if resp.status in (401, 403):
+                        self.metrics.failed_requests += 1
                         body = await resp.text()
                         if any(
                             x in body.lower()
@@ -128,12 +145,20 @@ class ClaudeUsageCoordinator(DataUpdateCoordinator[dict]):
                         raise ConfigEntryAuthFailed("session_expired")
 
                     if resp.status == 302:
+                        self.metrics.failed_requests += 1
                         raise ConfigEntryAuthFailed("session_expired")
 
                     if resp.status != 200:
+                        self.metrics.failed_requests += 1
                         raise UpdateFailed(f"HTTP {resp.status}")
 
                     data = await resp.json()
+
+                    # Record response time and success timestamp
+                    self.metrics.last_response_ms = int(
+                        (time.monotonic() - t_start) * 1000
+                    )
+                    self.metrics.last_success_at = datetime.now(timezone.utc).isoformat()
 
                     # Auto-renew cookies if the server issues new ones
                     updates: dict = {}
@@ -141,6 +166,7 @@ class ClaudeUsageCoordinator(DataUpdateCoordinator[dict]):
                         new_val = resp.cookies["cf_clearance"].value
                         if new_val and new_val != cf_clearance:
                             updates[CONF_CF_CLEARANCE] = new_val
+                            self.metrics.cookie_renewals += 1
                             _LOGGER.debug("cf_clearance renewed automatically")
                     if "sessionKey" in resp.cookies:
                         new_val = resp.cookies["sessionKey"].value
@@ -159,4 +185,5 @@ class ClaudeUsageCoordinator(DataUpdateCoordinator[dict]):
         except ConfigEntryAuthFailed:
             raise
         except aiohttp.ClientError as err:
+            self.metrics.failed_requests += 1
             raise UpdateFailed(f"Network error: {err}") from err

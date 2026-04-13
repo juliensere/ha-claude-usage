@@ -1,3 +1,9 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
 # Build output
 dist/
 release/

@@ -10,7 +10,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfTime
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -22,8 +22,14 @@ from .coordinator import ClaudeUsageCoordinator
 
 @dataclass(frozen=True, kw_only=True)
 class ClaudeUsageSensorDescription(SensorEntityDescription):
-    """Extends SensorEntityDescription with a value extractor."""
+    """Extends SensorEntityDescription with a value extractor.
+
+    value_fn   : reads from coordinator.data  (usage sensors)
+    metric_fn  : reads from coordinator.metrics  (diagnostic sensors)
+    When metric_fn is set it takes priority over value_fn.
+    """
     value_fn: Callable[[dict], Any] = field(default=lambda _: None)
+    metric_fn: Callable[[Any], Any] | None = field(default=None)
 
 
 SENSORS: tuple[ClaudeUsageSensorDescription, ...] = (
@@ -102,6 +108,53 @@ SENSORS: tuple[ClaudeUsageSensorDescription, ...] = (
 )
 
 
+DIAGNOSTIC_SENSORS: tuple[ClaudeUsageSensorDescription, ...] = (
+    ClaudeUsageSensorDescription(
+        key="diag_total_requests",
+        name="Total Requests",
+        icon="mdi:counter",
+        native_unit_of_measurement="requests",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        metric_fn=lambda m: m.total_requests,
+    ),
+    ClaudeUsageSensorDescription(
+        key="diag_failed_requests",
+        name="Failed Requests",
+        icon="mdi:alert-circle-outline",
+        native_unit_of_measurement="requests",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        metric_fn=lambda m: m.failed_requests,
+    ),
+    ClaudeUsageSensorDescription(
+        key="diag_response_time",
+        name="Response Time",
+        icon="mdi:timer-outline",
+        native_unit_of_measurement="ms",
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        metric_fn=lambda m: m.last_response_ms,
+    ),
+    ClaudeUsageSensorDescription(
+        key="diag_cookie_renewals",
+        name="Cookie Renewals",
+        icon="mdi:cookie-refresh-outline",
+        native_unit_of_measurement="renewals",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        metric_fn=lambda m: m.cookie_renewals,
+    ),
+    ClaudeUsageSensorDescription(
+        key="diag_last_success",
+        name="Last Successful Update",
+        icon="mdi:check-circle-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        metric_fn=lambda m: m.last_success_at,
+    ),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -109,7 +162,8 @@ async def async_setup_entry(
 ) -> None:
     coordinator: ClaudeUsageCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
-        ClaudeUsageSensor(coordinator, description) for description in SENSORS
+        ClaudeUsageSensor(coordinator, description)
+        for description in (*SENSORS, *DIAGNOSTIC_SENSORS)
     )
 
 
@@ -136,10 +190,16 @@ class ClaudeUsageSensor(CoordinatorEntity[ClaudeUsageCoordinator], SensorEntity)
 
     @property
     def native_value(self) -> Any:
+        if self.entity_description.metric_fn is not None:
+            # Diagnostic sensor — reads from coordinator.metrics (always available)
+            return self.entity_description.metric_fn(self.coordinator.metrics)
         if self.coordinator.data is None:
             return None
         return self.entity_description.value_fn(self.coordinator.data)
 
     @property
     def available(self) -> bool:
+        if self.entity_description.metric_fn is not None:
+            # Diagnostic sensors are available as soon as the coordinator exists
+            return True
         return super().available and self.coordinator.data is not None
