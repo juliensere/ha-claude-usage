@@ -33,14 +33,16 @@ All sensors appear under a single **Claude Usage** device.
 
 ## Installation
 
-### Step 1 — Copy the integration
+### Step 1 — Download the integration
 
-Copy the `custom_components/claude_usage` folder into your Home Assistant config directory:
+Go to the [**Releases page**](https://github.com/juliensere/ha-cloud-usage/releases/latest) and download `claude_usage.zip` from the latest release.
+
+Extract it into your Home Assistant `custom_components` directory:
 
 ```
 /config/
 └── custom_components/
-    └── claude_usage/        ← copy this folder here
+    └── claude_usage/        ← extracted here
         ├── __init__.py
         ├── manifest.json
         ├── config_flow.py
@@ -53,7 +55,14 @@ Copy the `custom_components/claude_usage` folder into your Home Assistant config
             └── fr.json
 ```
 
-> **Docker users:** your `/config` directory is the volume you mounted when starting the HA container (typically `./homeassistant` or `/opt/homeassistant/config`). Copy the folder there directly from your host machine.
+**Linux / macOS (one-liner):**
+
+```bash
+cd /config/custom_components
+unzip ~/Downloads/claude_usage.zip
+```
+
+**Docker users:** replace `/config` with the volume you mounted when starting the HA container (typically `./homeassistant` or `/opt/homeassistant/config`).
 
 ### Step 2 — Restart Home Assistant
 

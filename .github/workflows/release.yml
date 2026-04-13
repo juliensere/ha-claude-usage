@@ -1,0 +1,27 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release:
+    name: Build ZIP and publish release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # required to create the GitHub Release
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build claude_usage.zip
+        run: |
+          cd config/custom_components
+          zip -r ../../claude_usage.zip claude_usage/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: claude_usage.zip
+          generate_release_notes: true
