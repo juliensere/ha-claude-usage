@@ -14,6 +14,48 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+
+def _minutes_until(iso: str) -> int | None:
+    """Return minutes between now and an ISO timestamp, or None on failure."""
+    try:
+        dt = datetime.fromisoformat(iso)
+        now = datetime.now(timezone.utc)
+        return max(0, int((dt - now).total_seconds() / 60))
+    except Exception:
+        return None
+
+
+def _parse_slot(raw: dict, key: str) -> dict | None:
+    """Extract a usage slot from the raw API response and compute resets_in_minutes."""
+    entry = raw.get(key)
+    if not entry:
+        return None
+    resets_at = entry.get("resets_at")
+    return {
+        "utilization": entry.get("utilization") or 0.0,
+        "resets_at": resets_at,
+        "resets_in_minutes": _minutes_until(resets_at) if resets_at else None,
+    }
+
+
+def _transform(raw: dict) -> dict:
+    """Transform the raw claude.ai API response into the structure expected by sensors."""
+    extra = raw.get("extra_usage") or {}
+    used = extra.get("used_credits") or 0.0
+    limit = extra.get("monthly_limit") or 0
+    return {
+        "session_5h": _parse_slot(raw, "five_hour"),
+        "weekly": _parse_slot(raw, "seven_day"),
+        "weekly_sonnet": _parse_slot(raw, "seven_day_sonnet"),
+        "weekly_opus": _parse_slot(raw, "seven_day_opus"),
+        "extra_usage": {
+            "enabled": extra.get("is_enabled", False),
+            "used": used,
+            "limit": limit,
+            "utilization": round(used / limit * 100, 1) if limit else 0.0,
+        },
+    }
+
 from .const import (
     BASE_URL,
     CONF_CF_CLEARANCE,
@@ -92,7 +134,8 @@ async def validate_credentials(
             if resp.status != 200:
                 raise UpdateFailed(f"Unexpected HTTP status: {resp.status}")
 
-            return await resp.json(), resp.cookies
+            raw = await resp.json()
+            return _transform(raw), resp.cookies
 
 
 class ClaudeUsageCoordinator(DataUpdateCoordinator[dict]):
@@ -152,7 +195,9 @@ class ClaudeUsageCoordinator(DataUpdateCoordinator[dict]):
                         self.metrics.failed_requests += 1
                         raise UpdateFailed(f"HTTP {resp.status}")
 
-                    data = await resp.json()
+                    raw = await resp.json()
+                    _LOGGER.debug("Raw API response: %s", raw)
+                    data = _transform(raw)
 
                     # Record response time and success timestamp
                     self.metrics.last_response_ms = int(
