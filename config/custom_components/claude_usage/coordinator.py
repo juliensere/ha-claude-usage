@@ -1,6 +1,7 @@
 """DataUpdateCoordinator for Claude Usage."""
 from __future__ import annotations
 
+import json
 import logging
 import time
 from dataclasses import dataclass, field
@@ -134,7 +135,16 @@ async def validate_credentials(
             if resp.status != 200:
                 raise UpdateFailed(f"Unexpected HTTP status: {resp.status}")
 
-            raw = await resp.json()
+            body = await resp.text()
+            try:
+                raw = json.loads(body)
+            except ValueError:
+                _LOGGER.warning(
+                    "Non-JSON response from API (content-type: %s): %.200s",
+                    resp.content_type,
+                    body,
+                )
+                raise UpdateFailed("Non-JSON response from API")
             return _transform(raw), resp.cookies
 
 
@@ -195,7 +205,17 @@ class ClaudeUsageCoordinator(DataUpdateCoordinator[dict]):
                         self.metrics.failed_requests += 1
                         raise UpdateFailed(f"HTTP {resp.status}")
 
-                    raw = await resp.json()
+                    body = await resp.text()
+                    try:
+                        raw = json.loads(body)
+                    except ValueError:
+                        self.metrics.failed_requests += 1
+                        _LOGGER.warning(
+                            "Non-JSON response from API (content-type: %s): %.200s",
+                            resp.content_type,
+                            body,
+                        )
+                        raise UpdateFailed("Non-JSON response from API")
                     _LOGGER.debug("Raw API response: %s", raw)
                     data = _transform(raw)
 
