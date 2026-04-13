@@ -9,3 +9,20 @@ services:
     ports:
       - "8123:8123"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8123/api/"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  ha-init:
+    image: python:3.12-alpine
+    network_mode: "service:homeassistant"
+    depends_on:
+      homeassistant:
+        condition: service_healthy
+    volumes:
+      - ./scripts/init_ha_dev.py:/init.py:ro
+    command: python3 /init.py
+    restart: "no"
