@@ -2,10 +2,9 @@
 
 Monitor your Claude.ai session usage and weekly limits directly in Home Assistant.
 
----
+![Capture des sensors](capture1.png)
 
 ## What it does
-
 Polls `claude.ai` every minute and exposes your usage as native HA sensors:
 
 | Sensor | Description | Unit |
@@ -20,8 +19,6 @@ Polls `claude.ai` every minute and exposes your usage as native HA sensors:
 | Extra Usage | Extra usage as a percentage of monthly limit | % |
 
 All sensors appear under a single **Claude Usage** device.
-
----
 
 ## Requirements
 
