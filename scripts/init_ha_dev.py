@@ -43,7 +43,7 @@ def post(path: str, payload: dict, token: str | None = None) -> tuple[int, dict]
 def wait_for_ha() -> None:
     print("Waiting for Home Assistant...", flush=True)
     for _ in range(60):
-        status, _ = get("/api/")
+        status, _ = get("/")
         if status == 200:
             print("Home Assistant is ready.", flush=True)
             return
