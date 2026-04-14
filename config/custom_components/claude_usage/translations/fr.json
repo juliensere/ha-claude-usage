@@ -44,5 +44,18 @@
       "reauth_successful": "Reconnexion réussie.",
       "reconfigure_successful": "Configuration mise à jour avec succès."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Claude Usage — Options",
+        "data": {
+          "update_interval": "Intervalle de polling (secondes)"
+        },
+        "data_description": {
+          "update_interval": "Fréquence de récupération des données depuis Claude.ai (min : 10 s, max : 6 h)."
+        }
+      }
+    }
   }
 }

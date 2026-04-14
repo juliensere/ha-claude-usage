@@ -7,10 +7,25 @@ from typing import Any
 import voluptuous as vol
 import aiohttp
 
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.core import callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+)
 
-from .const import CONF_CF_CLEARANCE, CONF_ORG_ID, CONF_SESSION_KEY, DOMAIN
+from .const import (
+    CONF_CF_CLEARANCE,
+    CONF_ORG_ID,
+    CONF_SESSION_KEY,
+    CONF_UPDATE_INTERVAL,
+    DOMAIN,
+    UPDATE_INTERVAL,
+    UPDATE_INTERVAL_MAX,
+    UPDATE_INTERVAL_MIN,
+)
 from .coordinator import validate_credentials
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,10 +61,45 @@ async def _test_credentials(
         return "unknown"
 
 
+class ClaudeUsageOptionsFlow(OptionsFlow):
+    """Handle the options flow (polling interval)."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        current = self.config_entry.options.get(CONF_UPDATE_INTERVAL, UPDATE_INTERVAL)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_UPDATE_INTERVAL, default=int(current)): (
+                        NumberSelector(
+                            NumberSelectorConfig(
+                                min=UPDATE_INTERVAL_MIN,
+                                max=UPDATE_INTERVAL_MAX,
+                                step=1,
+                                unit_of_measurement="s",
+                                mode=NumberSelectorMode.BOX,
+                            )
+                        )
+                    ),
+                }
+            ),
+        )
+
+
 class ClaudeUsageConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the initial setup and re-authentication flows."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> ClaudeUsageOptionsFlow:
+        return ClaudeUsageOptionsFlow()
 
     # ── Initial setup ──────────────────────────────────────────────────────────
 

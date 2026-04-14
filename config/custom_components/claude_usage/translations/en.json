@@ -44,5 +44,18 @@
       "reauth_successful": "Re-authentication successful.",
       "reconfigure_successful": "Configuration updated successfully."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Claude Usage — Options",
+        "data": {
+          "update_interval": "Polling interval (seconds)"
+        },
+        "data_description": {
+          "update_interval": "How often the integration fetches data from Claude.ai (min: 10 s, max: 6 h)."
+        }
+      }
+    }
   }
 }

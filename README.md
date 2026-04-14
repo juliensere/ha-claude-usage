@@ -5,7 +5,7 @@ Monitor your Claude.ai session usage and weekly limits directly in Home Assistan
 ![Capture des sensors](capture1.png)
 
 ## What it does
-Polls `claude.ai` every minute and exposes your usage as native HA sensors:
+Polls `claude.ai` at a configurable interval (default: every 60 seconds) and exposes your usage as native HA sensors:
 
 | Sensor | Description | Unit |
 |--------|-------------|------|
@@ -105,7 +105,7 @@ HA tests the connection before saving. If it fails, the error message tells you 
 | `sessionKey` | Weeks to months | Stays valid as long as you remain logged in |
 | `cf_clearance` | ~24 hours | **Auto-renewed** by the integration on every successful request |
 
-Because the integration polls every minute, `cf_clearance` is silently renewed by Cloudflare and saved back to HA — no action needed on your part under normal use.
+Because the integration polls regularly, `cf_clearance` is silently renewed by Cloudflare and saved back to HA — no action needed on your part under normal use.
 
 ### What happens when a session expires?
 
@@ -118,6 +118,20 @@ If HA is stopped for more than 24 hours, `cf_clearance` may expire. When this ha
 
 You can also trigger a manual credential update at any time:  
 **Settings → Integrations → Claude Usage → ⋮ menu → Reconfigure**
+
+---
+
+## Polling interval
+
+The default polling interval is **60 seconds**. You can change it without reinstalling the integration:
+
+**Settings → Integrations → Claude Usage → Configure**
+
+| Setting | Default | Minimum | Maximum |
+|---------|---------|---------|---------|
+| Polling interval | 60 s | 10 s | 6 h (21 600 s) |
+
+The integration reloads automatically after saving. Existing installations keep the 60 s default until you open this form and save.
 
 ---
 

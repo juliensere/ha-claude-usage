@@ -62,6 +62,7 @@ from .const import (
     CONF_CF_CLEARANCE,
     CONF_ORG_ID,
     CONF_SESSION_KEY,
+    CONF_UPDATE_INTERVAL,
     DOMAIN,
     UPDATE_INTERVAL,
     USAGE_ENDPOINT,
@@ -152,11 +153,12 @@ class ClaudeUsageCoordinator(DataUpdateCoordinator[dict]):
     """Fetches Claude usage data every minute and auto-renews cookies."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        interval = int(entry.options.get(CONF_UPDATE_INTERVAL, UPDATE_INTERVAL))
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(seconds=UPDATE_INTERVAL),
+            update_interval=timedelta(seconds=interval),
         )
         self.entry = entry
         self.metrics = UsageMetrics()
