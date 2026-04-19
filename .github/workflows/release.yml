@@ -17,8 +17,8 @@ jobs:
 
       - name: Build claude_usage.zip
         run: |
-          cd config/custom_components
-          zip -r ../../claude_usage.zip claude_usage/
+          cd custom_components
+          zip -r ../claude_usage.zip claude_usage/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

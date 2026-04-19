@@ -30,7 +30,14 @@ All sensors appear under a single **Claude Usage** device.
 
 ## Installation
 
-### Step 1 — Download the integration
+### Option A — HACS (recommended)
+
+1. In Home Assistant, go to **HACS → Integrations → ⋮ → Custom repositories**
+2. Add `https://github.com/juliensere/ha-cloud-usage` with category **Integration**
+3. Search for **Claude Usage** and click **Download**
+4. Restart Home Assistant
+
+### Option B — Manual download
 
 Go to the [**Releases page**](https://github.com/juliensere/ha-cloud-usage/releases/latest) and download `claude_usage.zip` from the latest release.
 
