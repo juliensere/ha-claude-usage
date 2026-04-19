@@ -94,7 +94,7 @@ def main() -> None:
         "redirect_uri": f"{HA_URL}/?auth_callback=1",
     }, token)
 
-    print(f"\nDone! Login at {HA_URL} with {USERNAME} / {PASSWORD}", flush=True)
+    print(f"\nDone! Login at {HA_URL} with username: {USERNAME}", flush=True)
 
 
 if __name__ == "__main__":
