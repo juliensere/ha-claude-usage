@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "feat/**", "feature/**"]
   pull_request:
     branches: [main]
 
@@ -39,8 +39,8 @@ jobs:
 
       - name: Build claude_usage.zip
         run: |
-          cd config/custom_components
-          zip -r ../../claude_usage.zip claude_usage/
+          cd custom_components
+          zip -r ../claude_usage.zip claude_usage/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

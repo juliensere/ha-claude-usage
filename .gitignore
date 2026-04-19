@@ -27,7 +27,7 @@ pids
 *.seed
 *.pid.lock
 
-# Home Assistant generated files
+# Home Assistant generated files (Docker dev runtime)
 config/.storage/
 config/.cache/
 config/.cloud/
@@ -37,4 +37,5 @@ config/blueprints/
 config/tts/
 config/home-assistant_v2.db*
 config/home-assistant.log*
+config/custom_components/
 .gitattributes

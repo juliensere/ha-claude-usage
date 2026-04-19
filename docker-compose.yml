@@ -4,6 +4,7 @@ services:
     container_name: ha-claude-usage-dev
     volumes:
       - ./config:/config
+      - ./custom_components:/config/custom_components
     environment:
       - TZ=Europe/Paris
     ports:

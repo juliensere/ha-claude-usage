@@ -5,9 +5,10 @@
 Home Assistant custom integration that exposes Claude.ai session and weekly usage as native sensors.
 
 ```
-config/custom_components/claude_usage/   ← integration source (canonical location)
-tests/                                   ← pytest smoke tests
-scripts/                                 ← standalone CLI helper
+custom_components/claude_usage/   ← integration source (canonical location, HACS-compatible)
+config/                           ← HA runtime config for Docker dev (configuration.yaml)
+tests/                            ← pytest smoke tests
+scripts/                          ← standalone CLI helper
 ```
 
 ## Architecture
@@ -49,4 +50,4 @@ Types: `feat`, `fix`, `chore`, `test`, `docs`, `refactor`, `ci`.
 - **URL-encode cookies** — `cf_clearance` contains unicode characters; always wrap values with `urllib.parse.quote(..., safe='')`.
 - **`ConfigEntryAuthFailed`** — raise this (not `UpdateFailed`) on 401/403 so HA triggers the native reauth notification automatically.
 - **Diagnostic sensors are always available** — their `available` property returns `True` unconditionally; they read from `coordinator.metrics`, not `coordinator.data`.
-- Integration files live under `config/custom_components/` (not at the repo root) so the `config/` directory can be mounted directly as the HA config volume during development.
+- Integration files are at the repo root under `custom_components/` (HACS convention). The Docker dev setup mounts both `./config:/config` (HA runtime config) and `./custom_components:/config/custom_components` (integration files) separately.
