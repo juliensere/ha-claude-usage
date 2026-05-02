@@ -251,6 +251,11 @@ class ClaudeUsageCoordinator(DataUpdateCoordinator[dict]):
 
         except ConfigEntryAuthFailed:
             raise
+        except TimeoutError as err:
+            self.metrics.failed_requests += 1
+            _LOGGER.warning("Request timed out after 15s — cf_clearance may be expired or Cloudflare is blocking")
+            raise UpdateFailed("Request timed out (Cloudflare block suspected)") from err
         except aiohttp.ClientError as err:
             self.metrics.failed_requests += 1
+            _LOGGER.warning("Network error: %s", err)
             raise UpdateFailed(f"Network error: {err}") from err
