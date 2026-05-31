@@ -12,7 +12,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -20,7 +20,7 @@ from .const import DOMAIN
 from .coordinator import ClaudeUsageCoordinator
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class ClaudeUsageSensorDescription(SensorEntityDescription):
     """Extends SensorEntityDescription with a value extractor.
 
