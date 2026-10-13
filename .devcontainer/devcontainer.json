@@ -1,6 +1,6 @@
 {
   "name": "HA Claude Usage",
-  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "image": "mcr.microsoft.com/devcontainers/python:3.14",
   "postCreateCommand": "pip install -r requirements-dev.txt",
   "customizations": {
     "vscode": {

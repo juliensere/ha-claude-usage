@@ -1,7 +1,10 @@
 """Shared fixtures for Claude Usage integration tests."""
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 import pytest
+from aiohttp import ClientResponse
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.claude_usage.const import (
@@ -23,6 +26,27 @@ def verify_cleanup():
     Custom-component test suites conventionally disable this check.
     """
     yield
+
+
+class _CompatClientResponse(ClientResponse):
+    """ClientResponse accepting aioresponses' pre-aiohttp-3.14 constructor call."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs.setdefault("stream_writer", MagicMock())
+        super().__init__(*args, **kwargs)
+
+
+@pytest.fixture(autouse=True)
+def aioresponses_aiohttp_314_compat():
+    """Let aioresponses 0.7.9 build responses with aiohttp >= 3.14.
+
+    aiohttp 3.14 made `stream_writer` a required ClientResponse argument and
+    aioresponses does not pass it yet (pnuckowski/aioresponses#288).
+    Remove once a fixed aioresponses release is pinned.
+    """
+    with patch("aioresponses.core.ClientResponse", _CompatClientResponse):
+        yield
+
 
 ORG_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 SESSION_KEY = "sk-ant-session-fakekey"

@@ -13,7 +13,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build claude_usage.zip
         run: |
@@ -21,7 +21,7 @@ jobs:
           zip -r ../claude_usage.zip claude_usage/
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: claude_usage.zip
           generate_release_notes: true
