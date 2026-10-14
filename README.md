@@ -214,6 +214,13 @@ automation:
 
 ## Changelog
 
+### 1.2.1
+
+- HTTP requests now go through a session created by Home Assistant instead of a new one per poll.
+- Minimum Home Assistant version is now 2024.11 (the config flow already relied on it).
+- Manifest and translations pass Home Assistant's `hassfest` validation.
+- The project is now released under the MIT license.
+
 ### 1.2.0
 
 - **Usage per product** — four new sensors (`Weekly Share Claude Code`, `Chats`, `Cowork`, `Other`) show how your weekly usage is split between products.
