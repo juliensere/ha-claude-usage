@@ -12,7 +12,7 @@
         "data_description": {
           "session_key": "Value of the 'sessionKey' cookie on claude.ai",
           "cf_clearance": "Value of the 'cf_clearance' cookie on claude.ai",
-          "org_id": "UUID visible in the Network tab: /api/organizations/<uuid>/usage"
+          "org_id": "UUID visible in the Network tab: /api/organizations/UUID/usage"
         }
       },
       "reauth_confirm": {

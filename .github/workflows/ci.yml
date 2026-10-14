@@ -5,6 +5,10 @@ on:
     branches: [main, "feat/**", "feature/**"]
   pull_request:
     branches: [main]
+  schedule:
+    # Weekly: hassfest and HACS rules evolve even when the code does not
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -32,6 +36,23 @@ jobs:
 
       - name: Run tests
         run: python -m pytest tests/ -v
+
+  validate:
+    name: Validate (hassfest + HACS)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: hassfest
+        uses: home-assistant/actions/hassfest@master
+
+      - name: HACS validation
+        uses: hacs/action@main
+        with:
+          category: integration
+          # No brand icon and no repository topics yet
+          ignore: brands topics
 
   package:
     name: Build release package

@@ -29,7 +29,7 @@ All sensors appear under a single **Claude Usage** device.
 
 ## Requirements
 
-- Home Assistant 2024.1 or later
+- Home Assistant 2024.11 or later
 - A Claude.ai account (Pro, Max, Team, or Enterprise plan)
 - Access to your browser DevTools to retrieve session cookies
 
