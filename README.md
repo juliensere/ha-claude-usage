@@ -212,6 +212,23 @@ automation:
 
 ---
 
+## Changelog
+
+### 1.2.0
+
+- **Usage per product** — four new sensors (`Weekly Share Claude Code`, `Chats`, `Cowork`, `Other`) show how your weekly usage is split between products.
+- **Model-scoped weekly limits** — one sensor per scoped limit on your plan (e.g. `Weekly Fable Usage`), with `used_percent_of_weekly` and `allowance_percent_of_weekly` attributes. These replace the `Weekly Sonnet Usage` / `Weekly Opus Usage` sensors on plans where the API no longer fills them; both are kept for plans that still do.
+- **Usage credit in dollars** — `Credit Used`, `Credit Remaining` and `Credit Limit` sensors when your plan includes a dollar-denominated credit.
+- **Limit state as attributes** — `Session Usage`, `Weekly Usage` and the scoped sensors expose `severity`, `is_active` and `resets_at`, handy for automations.
+- Tested against Home Assistant 2026.10; the test suite now runs on Python 3.14.
+
+### 1.1.0
+
+- Per-phase network tracing (DNS, TCP/TLS, headers, first byte) in DEBUG logs.
+- Granular timeouts, with a warning naming the phase where a request stalled.
+
+---
+
 ## Privacy
 
 Credentials are stored locally in HA's encrypted config entry storage. They are never sent anywhere other than `claude.ai`.
