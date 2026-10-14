@@ -17,6 +17,13 @@ Polls `claude.ai` at a configurable interval (default: every 60 seconds) and exp
 | Weekly Opus Usage | Weekly Opus-specific limit (if on your plan) | % |
 | Extra Credits Used | Extra usage credits consumed this month | credits |
 | Extra Usage | Extra usage as a percentage of monthly limit | % |
+| Weekly Share Claude Code / Chats / Cowork / Other | Share of your weekly usage per product | % |
+| Weekly \<Model\> Usage | Weekly limit scoped to one model (one sensor per scoped limit on your plan, e.g. `Weekly Fable Usage`) | % |
+| Credit Used / Remaining / Limit | Dollar-denominated usage credit (if on your plan) | USD |
+
+Session Usage, Weekly Usage and the scoped weekly sensors also expose `severity`, `is_active` and `resets_at` as attributes.
+
+Scoped weekly sensors are created from the limits returned at startup — reload the integration if your plan gains a new one.
 
 All sensors appear under a single **Claude Usage** device.
 

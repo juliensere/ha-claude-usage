@@ -15,6 +15,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import slugify
 
 from .const import (
     BASE_URL,
@@ -292,14 +293,89 @@ def _parse_slot(raw: dict, key: str) -> dict | None:
     }
 
 
+def _with_limit(slot: dict | None, raw: dict, kind: str) -> dict | None:
+    """Complète un slot avec la sévérité et l'état actif de l'entrée `limits` associée."""
+    if slot is None:
+        return None
+    limit = next(
+        (l for l in raw.get("limits") or [] if l.get("kind") == kind), {}
+    )
+    return {
+        **slot,
+        "severity": limit.get("severity"),
+        "is_active": limit.get("is_active"),
+    }
+
+
+def _parse_scoped_limits(raw: dict) -> list[dict]:
+    """Extrait les quotas hebdomadaires restreints à un modèle ou une surface."""
+    shares = {
+        share.get("limit_index"): share
+        for share in raw.get("weekly_scoped_shares") or []
+    }
+    scoped = []
+    for index, limit in enumerate(raw.get("limits") or []):
+        if limit.get("kind") != "weekly_scoped":
+            continue
+        scope = limit.get("scope") or {}
+        model = scope.get("model") or {}
+        surface = scope.get("surface")
+        name = (
+            model.get("display_name")
+            or model.get("id")
+            or (surface if isinstance(surface, str) else None)
+            or f"Scope {index}"
+        )
+        share = shares.get(index) or {}
+        resets_at = limit.get("resets_at")
+        scoped.append(
+            {
+                "key": slugify(name),
+                "name": name,
+                "utilization": limit.get("percent"),
+                "resets_at": resets_at,
+                "resets_in_minutes": _minutes_until(resets_at) if resets_at else None,
+                "severity": limit.get("severity"),
+                "is_active": limit.get("is_active"),
+                "used_percent_of_weekly": share.get("used_percent_of_weekly"),
+                "allowance_percent_of_weekly": share.get("allowance_percent_of_weekly"),
+            }
+        )
+    return scoped
+
+
+def _parse_credit(raw: dict) -> dict | None:
+    """Extrait l'enveloppe en dollars (`iguana_necktie`), ou None si absente."""
+    entry = raw.get("iguana_necktie")
+    if not entry or entry.get("limit_dollars") is None:
+        return None
+    resets_at = entry.get("resets_at")
+    return {
+        "used": entry.get("used_dollars"),
+        "remaining": entry.get("remaining_dollars"),
+        "limit": entry.get("limit_dollars"),
+        "utilization": entry.get("utilization"),
+        "resets_at": resets_at,
+        "resets_in_minutes": _minutes_until(resets_at) if resets_at else None,
+    }
+
+
 def _transform(raw: dict) -> dict:
     """Transforme la réponse brute de l'API en structure attendue par les sensors."""
     extra = raw.get("extra_usage") or {}
     used = extra.get("used_credits") or 0.0
     limit = extra.get("monthly_limit") or 0
+    breakdown = raw.get("seven_day_breakdown") or {}
     return {
-        "session_5h": _parse_slot(raw, "five_hour"),
-        "weekly": _parse_slot(raw, "seven_day"),
+        "session_5h": _with_limit(_parse_slot(raw, "five_hour"), raw, "session"),
+        "weekly": _with_limit(_parse_slot(raw, "seven_day"), raw, "weekly_all"),
+        "scoped_limits": _parse_scoped_limits(raw),
+        "breakdown": {
+            row["key"]: row.get("percent")
+            for row in breakdown.get("rows") or []
+            if row.get("key")
+        },
+        "credit": _parse_credit(raw),
         "weekly_sonnet": _parse_slot(raw, "seven_day_sonnet"),
         "weekly_opus": _parse_slot(raw, "seven_day_opus"),
         "extra_usage": {

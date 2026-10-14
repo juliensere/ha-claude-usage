@@ -30,6 +30,41 @@ class ClaudeUsageSensorDescription(SensorEntityDescription):
     """
     value_fn: Callable[[dict], Any] = field(default=lambda _: None)
     metric_fn: Callable[[Any], Any] | None = field(default=None)
+    attrs_fn: Callable[[dict], dict[str, Any] | None] | None = field(default=None)
+
+
+_SLOT_ATTRS = ("severity", "is_active", "resets_at")
+_SCOPED_ATTRS = (
+    *_SLOT_ATTRS,
+    "used_percent_of_weekly",
+    "allowance_percent_of_weekly",
+)
+
+
+def _slot_attrs(slot: dict | None, keys: tuple[str, ...] = _SLOT_ATTRS) -> dict | None:
+    if not slot:
+        return None
+    return {key: slot.get(key) for key in keys}
+
+
+def _scoped_limit(data: dict, key: str) -> dict | None:
+    return next(
+        (s for s in data.get("scoped_limits") or [] if s.get("key") == key), None
+    )
+
+
+def _scoped_description(scoped: dict) -> ClaudeUsageSensorDescription:
+    """Build the sensor description for one model/surface-scoped weekly limit."""
+    key = scoped["key"]
+    return ClaudeUsageSensorDescription(
+        key=f"weekly_scoped_{key}",
+        name=f"Weekly {scoped['name']} Usage",
+        icon="mdi:robot-outline",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: (_scoped_limit(d, key) or {}).get("utilization"),
+        attrs_fn=lambda d: _slot_attrs(_scoped_limit(d, key), _SCOPED_ATTRS),
+    )
 
 
 SENSORS: tuple[ClaudeUsageSensorDescription, ...] = (
@@ -40,6 +75,7 @@ SENSORS: tuple[ClaudeUsageSensorDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: (d.get("session_5h") or {}).get("utilization"),
+        attrs_fn=lambda d: _slot_attrs(d.get("session_5h")),
     ),
     ClaudeUsageSensorDescription(
         key="session_reset_minutes",
@@ -56,6 +92,7 @@ SENSORS: tuple[ClaudeUsageSensorDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: (d.get("weekly") or {}).get("utilization"),
+        attrs_fn=lambda d: _slot_attrs(d.get("weekly")),
     ),
     ClaudeUsageSensorDescription(
         key="weekly_reset_minutes",
@@ -104,6 +141,63 @@ SENSORS: tuple[ClaudeUsageSensorDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: (d.get("extra_usage") or {}).get("utilization"),
+    ),
+    ClaudeUsageSensorDescription(
+        key="weekly_share_claude_code",
+        name="Weekly Share Claude Code",
+        icon="mdi:console",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: (d.get("breakdown") or {}).get("claude_code"),
+    ),
+    ClaudeUsageSensorDescription(
+        key="weekly_share_chat",
+        name="Weekly Share Chats",
+        icon="mdi:chat-outline",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: (d.get("breakdown") or {}).get("chat"),
+    ),
+    ClaudeUsageSensorDescription(
+        key="weekly_share_cowork",
+        name="Weekly Share Cowork",
+        icon="mdi:account-group-outline",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: (d.get("breakdown") or {}).get("cowork"),
+    ),
+    ClaudeUsageSensorDescription(
+        key="weekly_share_other",
+        name="Weekly Share Other",
+        icon="mdi:dots-horizontal-circle-outline",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: (d.get("breakdown") or {}).get("other"),
+    ),
+    ClaudeUsageSensorDescription(
+        key="credit_used",
+        name="Credit Used",
+        icon="mdi:cash-minus",
+        native_unit_of_measurement="USD",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: (d.get("credit") or {}).get("used"),
+        attrs_fn=lambda d: _slot_attrs(d.get("credit"), ("utilization", "resets_at")),
+    ),
+    ClaudeUsageSensorDescription(
+        key="credit_remaining",
+        name="Credit Remaining",
+        icon="mdi:cash-check",
+        native_unit_of_measurement="USD",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: (d.get("credit") or {}).get("remaining"),
+    ),
+    ClaudeUsageSensorDescription(
+        key="credit_limit",
+        name="Credit Limit",
+        icon="mdi:cash-lock",
+        native_unit_of_measurement="USD",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: (d.get("credit") or {}).get("limit"),
     ),
 )
 
@@ -161,9 +255,14 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: ClaudeUsageCoordinator = hass.data[DOMAIN][entry.entry_id]
+    # Scoped weekly limits depend on the plan: one sensor per limit seen at setup
+    scoped = tuple(
+        _scoped_description(s)
+        for s in (coordinator.data or {}).get("scoped_limits") or []
+    )
     async_add_entities(
         ClaudeUsageSensor(coordinator, description)
-        for description in (*SENSORS, *DIAGNOSTIC_SENSORS)
+        for description in (*SENSORS, *scoped, *DIAGNOSTIC_SENSORS)
     )
 
 
@@ -196,6 +295,13 @@ class ClaudeUsageSensor(CoordinatorEntity[ClaudeUsageCoordinator], SensorEntity)
         if self.coordinator.data is None:
             return None
         return self.entity_description.value_fn(self.coordinator.data)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        attrs_fn = self.entity_description.attrs_fn
+        if attrs_fn is None or self.coordinator.data is None:
+            return None
+        return attrs_fn(self.coordinator.data)
 
     @property
     def available(self) -> bool:

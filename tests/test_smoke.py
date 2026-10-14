@@ -25,12 +25,14 @@ from custom_components.claude_usage.const import BASE_URL, DOMAIN, USAGE_ENDPOIN
 from custom_components.claude_usage.coordinator import (
     ClaudeUsageCoordinator,
     UsageMetrics,
+    _transform,
     validate_credentials,
 )
 from custom_components.claude_usage.sensor import (
     DIAGNOSTIC_SENSORS,
     SENSORS,
     ClaudeUsageSensor,
+    _scoped_description,
 )
 
 from .conftest import CF_CLEARANCE, ORG_ID, SESSION_KEY
@@ -135,6 +137,70 @@ async def test_coordinator_cookie_renewal(
         await coordinator._async_update_data()
 
     assert coordinator.metrics.cookie_renewals == 1
+
+
+# ── _transform ───────────────────────────────────────────────────────────────
+
+
+def test_transform_extended_payload(fake_raw_api_data):
+    """Limits, scoped limits, breakdown and credit are extracted from the payload."""
+    data = _transform(fake_raw_api_data)
+
+    assert data["session_5h"]["severity"] == "normal"
+    assert data["session_5h"]["is_active"] is True
+    assert data["weekly"]["severity"] == "warning"
+    assert data["breakdown"] == {"claude_code": 80, "chat": 20, "cowork": 0, "other": 0}
+    assert data["credit"]["used"] == 25.0
+    assert data["credit"]["remaining"] == 225.0
+    assert data["credit"]["limit"] == 250
+
+    (scoped,) = data["scoped_limits"]
+    assert scoped["key"] == "fable"
+    assert scoped["name"] == "Fable"
+    assert scoped["utilization"] == 30
+    assert scoped["allowance_percent_of_weekly"] == 50
+
+
+def test_transform_legacy_payload():
+    """A payload without the newer blocks yields empty/None values, not errors."""
+    data = _transform(
+        {"five_hour": {"utilization": 1.0, "resets_at": None}, "seven_day": None}
+    )
+
+    assert data["session_5h"]["utilization"] == 1.0
+    assert data["session_5h"]["severity"] is None
+    assert data["weekly"] is None
+    assert data["scoped_limits"] == []
+    assert data["breakdown"] == {}
+    assert data["credit"] is None
+
+
+def test_scoped_sensor_value_and_attributes(fake_raw_api_data):
+    """A scoped-limit sensor exposes its percentage and share attributes."""
+    coordinator = MagicMock()
+    coordinator.data = _transform(fake_raw_api_data)
+
+    description = _scoped_description(coordinator.data["scoped_limits"][0])
+    sensor = _make_sensor(coordinator, description)
+
+    assert description.key == "weekly_scoped_fable"
+    assert sensor.native_value == 30
+    assert sensor.extra_state_attributes["allowance_percent_of_weekly"] == 50
+
+
+def test_session_sensor_attributes(fake_raw_api_data):
+    """Session sensor carries severity / is_active / resets_at as attributes."""
+    coordinator = MagicMock()
+    coordinator.data = _transform(fake_raw_api_data)
+
+    session_desc = next(s for s in SENSORS if s.key == "session_utilization")
+    sensor = _make_sensor(coordinator, session_desc)
+
+    assert sensor.extra_state_attributes == {
+        "severity": "normal",
+        "is_active": True,
+        "resets_at": "2026-04-14T05:00:00+00:00",
+    }
 
 
 # ── UsageMetrics defaults ────────────────────────────────────────────────────

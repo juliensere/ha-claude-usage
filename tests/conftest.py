@@ -75,12 +75,42 @@ def fake_raw_api_data() -> dict:
         "seven_day": {"utilization": 70.0, "resets_at": "2026-04-21T00:00:00+00:00"},
         "seven_day_sonnet": {"utilization": 55.0, "resets_at": "2026-04-21T00:00:00+00:00"},
         "seven_day_opus": None,
+        "iguana_necktie": {
+            "utilization": 10.0,
+            "resets_at": "2026-11-05T07:59:00+00:00",
+            "limit_dollars": 250,
+            "used_dollars": 25.0,
+            "remaining_dollars": 225.0,
+        },
         "extra_usage": {
             "is_enabled": True,
             "monthly_limit": 2000,
             "used_credits": 10.0,
             "utilization": None,
         },
+        "limits": [
+            {"kind": "session", "percent": 42, "severity": "normal", "is_active": True},
+            {"kind": "weekly_all", "percent": 70, "severity": "warning", "is_active": False},
+            {
+                "kind": "weekly_scoped",
+                "percent": 30,
+                "severity": "normal",
+                "resets_at": "2026-04-21T00:00:00+00:00",
+                "scope": {"model": {"id": None, "display_name": "Fable"}, "surface": None},
+                "is_active": False,
+            },
+        ],
+        "seven_day_breakdown": {
+            "rows": [
+                {"key": "claude_code", "display_name": "Claude Code", "percent": 80},
+                {"key": "chat", "display_name": "Chats", "percent": 20},
+                {"key": "cowork", "display_name": "Cowork", "percent": 0},
+                {"key": "other", "display_name": "Autres", "percent": 0},
+            ],
+        },
+        "weekly_scoped_shares": [
+            {"limit_index": 2, "used_percent_of_weekly": 15, "allowance_percent_of_weekly": 50}
+        ],
     }
 
 

@@ -16,7 +16,7 @@ scripts/                          ← standalone CLI helper
 | File | Role |
 |------|------|
 | `coordinator.py` | `DataUpdateCoordinator` — polls `GET /api/organizations/{org_id}/usage` every 60 s, auto-renews cookies, accumulates `UsageMetrics` |
-| `sensor.py` | 8 usage sensors + 5 diagnostic sensors; `ClaudeUsageSensorDescription` carries a `value_fn` (usage) or `metric_fn` (diagnostics) |
+| `sensor.py` | 15 usage sensors + one per scoped weekly limit + 5 diagnostic sensors; `ClaudeUsageSensorDescription` carries a `value_fn` (usage) or `metric_fn` (diagnostics) |
 | `config_flow.py` | Three flows: `user` (initial setup), `reauth_confirm` (triggered by `ConfigEntryAuthFailed`), `reconfigure` (manual update) |
 | `__init__.py` | Entry setup/unload + `async_get_config_entry_diagnostics` |
 | `const.py` | All constants — change `UPDATE_INTERVAL` here to adjust poll frequency |
