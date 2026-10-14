@@ -12,8 +12,9 @@ from urllib.parse import quote
 import aiohttp
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import slugify
 
@@ -29,6 +30,8 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+_DATA_SESSION = f"{DOMAIN}_session"
 
 # Timeouts détaillés : chaque phase a son propre budget
 _TIMEOUT = aiohttp.ClientTimeout(
@@ -391,7 +394,23 @@ def _transform(raw: dict) -> dict:
 # Requête HTTP partagée (validate_credentials + coordinator)
 # ---------------------------------------------------------------------------
 
+@callback
+def _get_session(hass: HomeAssistant) -> aiohttp.ClientSession:
+    """Retourne la session HTTP du plugin, créée via Home Assistant au premier appel.
+
+    Sans cookie jar : les cookies sont envoyés explicitement dans le header.
+    """
+    if (session := hass.data.get(_DATA_SESSION)) is None:
+        session = hass.data[_DATA_SESSION] = async_create_clientsession(
+            hass,
+            cookie_jar=aiohttp.DummyCookieJar(),
+            trace_configs=[_build_trace_config()],
+        )
+    return session
+
+
 async def _fetch_usage(
+    hass: HomeAssistant,
     session_key: str,
     cf_clearance: str,
     org_id: str,
@@ -421,74 +440,74 @@ async def _fetch_usage(
     _LOGGER.debug("[FETCH] Headers envoyés (secrets masqués): %s", _safe_headers(headers))
 
     trace_data: dict = {}
-    trace_config = _build_trace_config()
+
+    session = _get_session(hass)
 
     try:
-        async with aiohttp.ClientSession(trace_configs=[trace_config]) as session:
-            async with session.get(
-                url,
-                headers=headers,
-                timeout=_TIMEOUT,
-                allow_redirects=False,
-                trace_request_ctx=trace_data,
-            ) as resp:
-                _LOGGER.debug(
-                    "[HTTP] Réponse reçue : status=%d, content-type=%s, "
-                    "cookies présents=%s, headers=%s",
+        async with session.get(
+            url,
+            headers=headers,
+            timeout=_TIMEOUT,
+            allow_redirects=False,
+            trace_request_ctx=trace_data,
+        ) as resp:
+            _LOGGER.debug(
+                "[HTTP] Réponse reçue : status=%d, content-type=%s, "
+                "cookies présents=%s, headers=%s",
+                resp.status,
+                resp.content_type,
+                list(resp.cookies.keys()),
+                dict(resp.headers),
+            )
+
+            # Redirection → session expirée
+            if resp.status == 302:
+                location = resp.headers.get("Location", "(inconnu)")
+                _LOGGER.warning(
+                    "[AUTH] Redirection 302 vers '%s' — session expirée ou cookie invalide",
+                    location,
+                )
+                raise ConfigEntryAuthFailed("session_expired")
+
+            # Accès refusé — distinguer Cloudflare d'une expiration de session
+            if resp.status in (401, 403):
+                body = await resp.text()
+                cf_blocked = any(
+                    x in body.lower()
+                    for x in ("cloudflare", "just a moment", "cf-ray", "turnstile")
+                )
+                _LOGGER.warning(
+                    "[AUTH] Status %d — cloudflare_block=%s | Extrait corps: %.400s",
                     resp.status,
-                    resp.content_type,
-                    list(resp.cookies.keys()),
-                    dict(resp.headers),
+                    cf_blocked,
+                    body,
+                )
+                raise ConfigEntryAuthFailed(
+                    "cf_clearance_expired" if cf_blocked else "session_expired"
                 )
 
-                # Redirection → session expirée
-                if resp.status == 302:
-                    location = resp.headers.get("Location", "(inconnu)")
-                    _LOGGER.warning(
-                        "[AUTH] Redirection 302 vers '%s' — session expirée ou cookie invalide",
-                        location,
-                    )
-                    raise ConfigEntryAuthFailed("session_expired")
+            if resp.status != 200:
+                body_preview = (await resp.text())[:400]
+                _LOGGER.warning(
+                    "[HTTP] Status inattendu %d | Extrait: %s",
+                    resp.status,
+                    body_preview,
+                )
+                raise UpdateFailed(f"HTTP {resp.status} inattendu")
 
-                # Accès refusé — distinguer Cloudflare d'une expiration de session
-                if resp.status in (401, 403):
-                    body = await resp.text()
-                    cf_blocked = any(
-                        x in body.lower()
-                        for x in ("cloudflare", "just a moment", "cf-ray", "turnstile")
-                    )
-                    _LOGGER.warning(
-                        "[AUTH] Status %d — cloudflare_block=%s | Extrait corps: %.400s",
-                        resp.status,
-                        cf_blocked,
-                        body,
-                    )
-                    raise ConfigEntryAuthFailed(
-                        "cf_clearance_expired" if cf_blocked else "session_expired"
-                    )
+            body = await resp.text()
+            try:
+                raw = json.loads(body)
+            except ValueError:
+                _LOGGER.warning(
+                    "[JSON] Réponse non-JSON (content-type=%s): %.300s",
+                    resp.content_type,
+                    body,
+                )
+                raise UpdateFailed("Réponse non-JSON de l'API")
 
-                if resp.status != 200:
-                    body_preview = (await resp.text())[:400]
-                    _LOGGER.warning(
-                        "[HTTP] Status inattendu %d | Extrait: %s",
-                        resp.status,
-                        body_preview,
-                    )
-                    raise UpdateFailed(f"HTTP {resp.status} inattendu")
-
-                body = await resp.text()
-                try:
-                    raw = json.loads(body)
-                except ValueError:
-                    _LOGGER.warning(
-                        "[JSON] Réponse non-JSON (content-type=%s): %.300s",
-                        resp.content_type,
-                        body,
-                    )
-                    raise UpdateFailed("Réponse non-JSON de l'API")
-
-                _LOGGER.debug("[JSON] Réponse brute: %s", raw)
-                return _transform(raw), resp.cookies
+            _LOGGER.debug("[JSON] Réponse brute: %s", raw)
+            return _transform(raw), resp.cookies
 
     except ConfigEntryAuthFailed:
         raise
@@ -547,14 +566,14 @@ async def _fetch_usage(
 # ---------------------------------------------------------------------------
 
 async def validate_credentials(
-    session_key: str, cf_clearance: str, org_id: str
+    hass: HomeAssistant, session_key: str, cf_clearance: str, org_id: str
 ) -> dict:
     """Valide les credentials via un vrai appel API.
 
     Retourne (données_parsées, cookies).
     Lève ConfigEntryAuthFailed ou aiohttp.ClientError en cas d'échec.
     """
-    return await _fetch_usage(session_key, cf_clearance, org_id)
+    return await _fetch_usage(hass, session_key, cf_clearance, org_id)
 
 
 # ---------------------------------------------------------------------------
@@ -598,7 +617,9 @@ class ClaudeUsageCoordinator(DataUpdateCoordinator[dict]):
         t_start = time.monotonic()
 
         try:
-            data, cookies = await _fetch_usage(session_key, cf_clearance, org_id)
+            data, cookies = await _fetch_usage(
+                self.hass, session_key, cf_clearance, org_id
+            )
         except (ConfigEntryAuthFailed, UpdateFailed):
             self.metrics.failed_requests += 1
             raise

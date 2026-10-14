@@ -8,7 +8,7 @@ import voluptuous as vol
 import aiohttp
 
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.selector import (
     NumberSelector,
@@ -47,11 +47,11 @@ REAUTH_SCHEMA = vol.Schema(
 
 
 async def _test_credentials(
-    session_key: str, cf_clearance: str, org_id: str
+    hass: HomeAssistant, session_key: str, cf_clearance: str, org_id: str
 ) -> str | None:
     """Return an error key string, or None on success."""
     try:
-        await validate_credentials(session_key, cf_clearance, org_id)
+        await validate_credentials(hass, session_key, cf_clearance, org_id)
         return None
     except ConfigEntryAuthFailed as err:
         return str(err)
@@ -110,6 +110,7 @@ class ClaudeUsageConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             error = await _test_credentials(
+                self.hass,
                 user_input[CONF_SESSION_KEY],
                 user_input[CONF_CF_CLEARANCE],
                 user_input[CONF_ORG_ID],
@@ -141,6 +142,7 @@ class ClaudeUsageConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             error = await _test_credentials(
+                self.hass,
                 user_input[CONF_SESSION_KEY],
                 user_input[CONF_CF_CLEARANCE],
                 reauth_entry.data[CONF_ORG_ID],
@@ -171,6 +173,7 @@ class ClaudeUsageConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             error = await _test_credentials(
+                self.hass,
                 user_input[CONF_SESSION_KEY],
                 user_input[CONF_CF_CLEARANCE],
                 user_input[CONF_ORG_ID],

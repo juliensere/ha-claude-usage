@@ -15,7 +15,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aioresponses import aioresponses
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import UpdateFailed
@@ -42,60 +41,58 @@ _USAGE_URL = BASE_URL + USAGE_ENDPOINT.format(org_id=ORG_ID)
 # ── validate_credentials ────────────────────────────────────────────────────
 
 
-async def test_validate_credentials_success(fake_raw_api_data):
+async def test_validate_credentials_success(
+    hass: HomeAssistant, aioclient_mock, fake_raw_api_data
+):
     """HTTP 200 → returns parsed JSON without raising."""
-    with aioresponses() as m:
-        m.get(_USAGE_URL, payload=fake_raw_api_data, status=200)
-        result, _cookies = await validate_credentials(SESSION_KEY, CF_CLEARANCE, ORG_ID)
+    aioclient_mock.get(_USAGE_URL, json=fake_raw_api_data)
+    result, _cookies = await validate_credentials(hass, SESSION_KEY, CF_CLEARANCE, ORG_ID)
 
     assert result["session_5h"]["utilization"] == 42
 
 
-async def test_validate_credentials_session_expired():
+async def test_validate_credentials_session_expired(hass: HomeAssistant, aioclient_mock):
     """HTTP 401 without Cloudflare body → ConfigEntryAuthFailed('session_expired')."""
-    with aioresponses() as m:
-        m.get(_USAGE_URL, body="Unauthorized", status=401)
-        with pytest.raises(ConfigEntryAuthFailed, match="session_expired"):
-            await validate_credentials(SESSION_KEY, CF_CLEARANCE, ORG_ID)
+    aioclient_mock.get(_USAGE_URL, text="Unauthorized", status=401)
+    with pytest.raises(ConfigEntryAuthFailed, match="session_expired"):
+        await validate_credentials(hass, SESSION_KEY, CF_CLEARANCE, ORG_ID)
 
 
-async def test_validate_credentials_cloudflare_block():
+async def test_validate_credentials_cloudflare_block(hass: HomeAssistant, aioclient_mock):
     """HTTP 403 with Cloudflare body → ConfigEntryAuthFailed('cf_clearance_expired')."""
-    with aioresponses() as m:
-        m.get(_USAGE_URL, body="Just a moment... cloudflare", status=403)
-        with pytest.raises(ConfigEntryAuthFailed, match="cf_clearance_expired"):
-            await validate_credentials(SESSION_KEY, CF_CLEARANCE, ORG_ID)
+    aioclient_mock.get(_USAGE_URL, text="Just a moment... cloudflare", status=403)
+    with pytest.raises(ConfigEntryAuthFailed, match="cf_clearance_expired"):
+        await validate_credentials(hass, SESSION_KEY, CF_CLEARANCE, ORG_ID)
 
 
-async def test_validate_credentials_302_redirect():
+async def test_validate_credentials_302_redirect(hass: HomeAssistant, aioclient_mock):
     """HTTP 302 → ConfigEntryAuthFailed('session_expired')."""
-    with aioresponses() as m:
-        m.get(_USAGE_URL, status=302, headers={"Location": "https://claude.ai/login"})
-        with pytest.raises(ConfigEntryAuthFailed, match="session_expired"):
-            await validate_credentials(SESSION_KEY, CF_CLEARANCE, ORG_ID)
+    aioclient_mock.get(
+        _USAGE_URL, status=302, headers={"Location": "https://claude.ai/login"}
+    )
+    with pytest.raises(ConfigEntryAuthFailed, match="session_expired"):
+        await validate_credentials(hass, SESSION_KEY, CF_CLEARANCE, ORG_ID)
 
 
-async def test_validate_credentials_unexpected_status():
+async def test_validate_credentials_unexpected_status(hass: HomeAssistant, aioclient_mock):
     """HTTP 500 → UpdateFailed."""
-    with aioresponses() as m:
-        m.get(_USAGE_URL, status=500, body="Internal Server Error")
-        with pytest.raises(UpdateFailed, match="500"):
-            await validate_credentials(SESSION_KEY, CF_CLEARANCE, ORG_ID)
+    aioclient_mock.get(_USAGE_URL, status=500, text="Internal Server Error")
+    with pytest.raises(UpdateFailed, match="500"):
+        await validate_credentials(hass, SESSION_KEY, CF_CLEARANCE, ORG_ID)
 
 
 # ── ClaudeUsageCoordinator ──────────────────────────────────────────────────
 
 
 async def test_coordinator_success_updates_metrics(
-    hass: HomeAssistant, mock_entry, fake_raw_api_data
+    hass: HomeAssistant, aioclient_mock, mock_entry, fake_raw_api_data
 ):
     """Successful fetch updates data and increments total_requests / last_response_ms."""
     mock_entry.add_to_hass(hass)
     coordinator = ClaudeUsageCoordinator(hass, mock_entry)
 
-    with aioresponses() as m:
-        m.get(_USAGE_URL, payload=fake_raw_api_data, status=200)
-        data = await coordinator._async_update_data()
+    aioclient_mock.get(_USAGE_URL, json=fake_raw_api_data)
+    data = await coordinator._async_update_data()
 
     assert data["session_5h"]["utilization"] == 42
     assert coordinator.metrics.total_requests == 1
@@ -105,38 +102,36 @@ async def test_coordinator_success_updates_metrics(
 
 
 async def test_coordinator_auth_failure_increments_failed(
-    hass: HomeAssistant, mock_entry
+    hass: HomeAssistant, aioclient_mock, mock_entry
 ):
     """Auth failure increments failed_requests and re-raises ConfigEntryAuthFailed."""
     mock_entry.add_to_hass(hass)
     coordinator = ClaudeUsageCoordinator(hass, mock_entry)
 
-    with aioresponses() as m:
-        m.get(_USAGE_URL, body="Unauthorized", status=401)
-        with pytest.raises(ConfigEntryAuthFailed):
-            await coordinator._async_update_data()
+    aioclient_mock.get(_USAGE_URL, text="Unauthorized", status=401)
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
 
     assert coordinator.metrics.total_requests == 1
     assert coordinator.metrics.failed_requests == 1
 
 
 async def test_coordinator_cookie_renewal(
-    hass: HomeAssistant, mock_entry, fake_raw_api_data
+    hass: HomeAssistant, aioclient_mock, mock_entry, fake_raw_api_data
 ):
     """When server sends a new cf_clearance cookie, cookie_renewals is incremented."""
     mock_entry.add_to_hass(hass)
     coordinator = ClaudeUsageCoordinator(hass, mock_entry)
 
-    with aioresponses() as m:
-        m.get(
-            _USAGE_URL,
-            payload=fake_raw_api_data,
-            status=200,
-            headers={"Set-Cookie": "cf_clearance=new-clearance-value; Path=/"},
-        )
-        await coordinator._async_update_data()
+    aioclient_mock.get(
+        _USAGE_URL,
+        json=fake_raw_api_data,
+        cookies={"cf_clearance": "new-clearance-value"},
+    )
+    await coordinator._async_update_data()
 
     assert coordinator.metrics.cookie_renewals == 1
+    assert mock_entry.data["cf_clearance"] == "new-clearance-value"
 
 
 # ── _transform ───────────────────────────────────────────────────────────────

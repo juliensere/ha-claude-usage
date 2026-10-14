@@ -28,7 +28,7 @@ pip install -r requirements-dev.txt
 python3 -m pytest tests/ -v
 ```
 
-Tests use `pytest-homeassistant-custom-component` for HA fixtures and `aioresponses` for HTTP mocking. No real network calls are made.
+Tests use `pytest-homeassistant-custom-component` for HA fixtures and its `aioclient_mock` fixture for HTTP mocking. No real network calls are made.
 
 ## Commit conventions
 

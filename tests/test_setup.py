@@ -8,7 +8,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from aioresponses import aioresponses
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 
@@ -23,15 +22,14 @@ _PAYLOAD = json.loads(
 
 
 async def test_setup_creates_sensors_and_unloads(
-    hass: HomeAssistant, mock_entry, enable_custom_integrations
+    hass: HomeAssistant, aioclient_mock, mock_entry, enable_custom_integrations
 ):
     """Setup with a real payload creates every sensor, then unloads cleanly."""
     mock_entry.add_to_hass(hass)
 
-    with aioresponses() as m:
-        m.get(_USAGE_URL, payload=_PAYLOAD, repeat=True)
-        assert await hass.config_entries.async_setup(mock_entry.entry_id)
-        await hass.async_block_till_done()
+    aioclient_mock.get(_USAGE_URL, json=_PAYLOAD)
+    assert await hass.config_entries.async_setup(mock_entry.entry_id)
+    await hass.async_block_till_done()
 
     assert mock_entry.state is ConfigEntryState.LOADED
 
